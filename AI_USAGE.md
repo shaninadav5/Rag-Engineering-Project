@@ -26,6 +26,19 @@
   test chunks number- and abbreviation-heavy text plus a 2,000-word unpunctuated run with the real
   bge tokenizer and asserts every chunk fits in 512 tokens including special tokens.
 
+- **A fake embedder that keeps tests fast and deterministic (Stage 5).** A bag-of-words vector
+  hashed with `md5` makes texts that share words similar, so ranking can be tested without the real
+  model; 98 tests run offline in about 5 seconds. Python's built-in `hash()` would have made tests
+  flaky, because it is randomized per process.
+- **Turning my review concerns into measurements (Stage 5).** I asked for four checks: model
+  loaded once, explicit normalization, tokenizer edge cases, and Chroma under concurrency. The AI
+  answered each with a probe script (constructor count, memory before and after 100 rounds, vector
+  norms, timings, a 9-thread stress run) and then locked the results in regression tests, e.g. a
+  fake `sentence_transformers` module that proves one model load and `normalize_embeddings=True`.
+  Two findings went into the design docs: the app must run as a single uvicorn worker (Chroma does
+  not support several processes on one directory), and embedding, not chunking, dominates
+  ingestion time (about 0.8 s per chunk on CPU).
+
 ## What I Had to Fix
 
 - **Upload size limit enforced too late (Stage 0).** The AI's first design checked the file size
@@ -57,6 +70,11 @@
   against it, and to pin exact versions.
 - **Tests that pass on the first run prove nothing by themselves (Stages 3-4).** All chunking tests
   passed immediately, so the code was deliberately broken (overlap disabled, page-break joining
-  disabled) to confirm the tests fail: 5 and 1 tests failed respectively.
+  disabled) to confirm the tests fail: 5 and 1 tests failed respectively. The same was done in
+  Stage 5: with `normalize_embeddings=False` the new embedder test fails.
+- **A benchmark that measured the wrong thing (Stage 5).** The first probe reported the same token
+  count for "1 MB" and "10 MB" texts: it sliced a 1.1 MB string to 10 MB, which changes nothing.
+  The suspicious number exposed it; the corrected run showed counting scales linearly (about 1.7 s
+  per MB). Benchmark output needs a sanity check before it is believed.
 - **Windows shell quirks.** Inline Python passed through PowerShell lost its `$` characters
   (`$in` in a Chroma filter), so probes were moved into script files.

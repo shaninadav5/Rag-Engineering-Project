@@ -28,6 +28,20 @@ def test_empty_input_gives_no_chunks() -> None:
     assert chunk_pages([], count_words, chunk_size=100, chunk_overlap=10) == []
 
 
+def test_blank_pages_produce_no_chunks_and_do_not_break_neighbours() -> None:
+    pages = [
+        PageText(1, "Intro sentence."),
+        PageText(2, "   \n\t \r\n  "),
+        PageText(3, ""),
+        PageText(4, "Closing sentence."),
+    ]
+
+    chunks = chunk_pages(pages, count_words, chunk_size=100, chunk_overlap=10)
+
+    assert chunks == [ChunkData(0, "Intro sentence.\n\nClosing sentence.", 1, 4, 4)]
+    assert chunk_pages(pages[1:3], count_words, chunk_size=100, chunk_overlap=10) == []
+
+
 def test_small_paragraph_is_one_chunk() -> None:
     chunks = chunk_text("Revenue grew 12% in Q3.", chunk_size=100, chunk_overlap=10)
 

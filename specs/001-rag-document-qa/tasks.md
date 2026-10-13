@@ -52,13 +52,13 @@ Check a task off only when its code and tests are done and reviewed. Each stage 
 
 ## Stage 5 - Embeddings and vector store
 
-- [ ] T025 `app/services/embeddings.py` `Embedder` interface + Sentence Transformers implementation
-- [ ] T025a Load the model at startup; fail fast if it cannot load, if `embedding_dim` does not match,
+- [x] T025 `app/services/embeddings.py` `Embedder` interface + Sentence Transformers implementation
+- [x] T025a Load the model at startup; fail fast if it cannot load, if `embedding_dim` does not match,
   or if `chunk_size` exceeds `max_seq_length - 2`
-- [ ] T026 `tests/fakes.py` deterministic fake embedder
-- [ ] T027 `app/services/vector_store.py` add, search with filter, delete by document
-- [ ] T028 `tests/test_vector_store.py` (ranking, top-k, filter, delete)
-- [ ] T029 Manual check with the real embedding model; commit
+- [x] T026 `tests/fakes.py` deterministic fake embedder
+- [x] T027 `app/services/vector_store.py` add, search with filter, delete by document
+- [x] T028 `tests/test_vector_store.py` (ranking, top-k, filter, delete)
+- [x] T029 Check with the real embedding model (automated, marker `model`); commit
 
 ## Stage 6 - Ingestion pipeline and document API
 
@@ -95,7 +95,8 @@ Check a task off only when its code and tests are done and reviewed. Each stage 
 
 ## Stage 10 - Containerization
 
-- [ ] T045 `Dockerfile` with CPU-only PyTorch and pre-downloaded embedding model
+- [ ] T045 `Dockerfile` with CPU-only PyTorch and pre-downloaded embedding model; uvicorn runs a
+  single worker (Chroma is single-process, research.md section 3)
 - [ ] T046 `docker-compose.yml` with `app`, `ollama`, volumes, model pull
 - [ ] T047 Run quickstart against containers; commit
 

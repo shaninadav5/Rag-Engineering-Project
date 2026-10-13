@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_dim: int = Field(384, gt=0)
     embedding_batch_size: int = Field(32, gt=0)
+    # bge models expect this instruction in front of queries (not documents) for retrieval.
+    embedding_query_prefix: str = "Represent this sentence for searching relevant passages: "
 
     top_k: int = Field(5, gt=0)
     top_k_max: int = Field(20, gt=0)

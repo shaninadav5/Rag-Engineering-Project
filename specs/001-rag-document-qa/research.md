@@ -107,6 +107,24 @@ Defaults: `chunk_size = 500`, `chunk_overlap = 50` (both configurable; overlap m
 - Strong retrieval quality for its size; small enough (~130 MB) to pre-download into the image.
 - Normalized vectors make cosine similarity a simple dot product and keep scores comparable.
 
+**Verified behaviour (Stage 5 checks)**
+
+- Normalization: bge's Sentence Transformers pipeline already ends with a `Normalize` module, and
+  the embedder also passes `normalize_embeddings=True` explicitly, so any model set in
+  `RAG_EMBEDDING_MODEL` produces unit vectors. Chroma's cosine space normalizes internally as well
+  (two parallel vectors of lengths 5 and 0.2 have distance 0), so scores would be correct either
+  way; the explicit flag makes the contract visible and keeps `score = 1 - distance` equal to the
+  dot product.
+- Token counting: `""`, whitespace-only text and control/zero-width characters count as 0 tokens.
+  Text longer than the model limit is counted in full (no truncation, no exception; about 1.7 s
+  per MB). Embedding such text does not crash either: the model truncates it, which is why
+  chunks are kept under the limit.
+- Speed on the development laptop (CPU only): embedding a 500-token chunk takes about 0.8 s
+  (226 chunks in 179 s), while chunking the same 0.6 MB of text takes under 5 s. The chunker's
+  worst case (100,000 words with no punctuation, 848 chunks) takes 51 s, against roughly 11
+  minutes to embed those chunks. Embedding is the bottleneck of ingestion; chunking is not worth
+  optimizing.
+
 **Alternatives considered**
 
 | Option | Why rejected |
@@ -134,6 +152,16 @@ cosine distance.
 
 - Metadata filtering and delete-by-filter are built in; both are required (FR-004, FR-011).
 - Persists to disk with no separate server or container (principle VI).
+
+**Concurrency constraint**
+
+- One `PersistentClient` is shared by all threads of the process. Concurrent `add`,
+  `delete_document` and `search` calls from threads are safe: a stress check with 6 writer and
+  3 reader threads finished with no errors and the exact expected record count, and a smaller
+  version is a regression test.
+- Chroma does not support several processes opening the same directory. The app therefore runs
+  as a single process: uvicorn with one worker (no `--workers N`). This also keeps a single copy
+  of the embedding model in memory.
 
 **Alternatives considered**
 
@@ -340,5 +368,11 @@ working while Ollama is down or still pulling the model.
 - Loaded once at startup (with the `embedding_dim` and `chunk_size` checks from section 2). If it
   cannot be loaded, the app does not start, with an error naming the model. In Docker the model is
   baked into the image, so this only happens when the configuration is wrong.
+- The single instance lives on `app.state.embedder`; request handlers and background tasks use
+  that instance and never construct their own. Verified: one model construction across hundreds
+  of calls, and process memory stays flat (548 MB after loading, 567 MB warm, 568 MB after 100
+  more rounds of embedding).
+- The instance is shared across threads (the threadpool that runs sync endpoints and background
+  tasks). Concurrent `embed_documents`, `embed_query` and `count_tokens` calls ran without errors.
 - During processing, an embedding error marks the document `failed` with the reason (edge case 7).
 - During `/ask`, an error while embedding the question returns `503 EMBEDDING_UNAVAILABLE`.

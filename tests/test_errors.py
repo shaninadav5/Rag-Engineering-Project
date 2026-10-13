@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from app.config import Settings
 from app.errors import UnsupportedFileTypeError
 from app.main import create_app
+from tests.fakes import FakeEmbedder
 
 
 class QuestionBody(BaseModel):
@@ -13,8 +14,8 @@ class QuestionBody(BaseModel):
 
 
 @pytest.fixture
-def app(settings: Settings) -> FastAPI:
-    app = create_app(settings)
+def app(settings: Settings, embedder: FakeEmbedder) -> FastAPI:
+    app = create_app(settings, embedder=embedder)
 
     @app.get("/raise-app-error")
     def raise_app_error() -> None:

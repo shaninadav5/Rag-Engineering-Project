@@ -6,6 +6,10 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
+class ConfigurationError(Exception):
+    """Invalid configuration detected at startup; the app refuses to start."""
+
+
 class AppError(Exception):
     status_code = 500
     code = "INTERNAL_ERROR"
