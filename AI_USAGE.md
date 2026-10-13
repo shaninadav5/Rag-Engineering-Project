@@ -28,7 +28,7 @@
 
 - **A fake embedder that keeps tests fast and deterministic (Stage 5).** A bag-of-words vector
   hashed with `md5` makes texts that share words similar, so ranking can be tested without the real
-  model; 130 tests run offline in about 8 seconds (after Stage 6). Python's built-in `hash()` would have made tests
+  model; 145 tests run offline in about 8 seconds (after Stage 7). Python's built-in `hash()` would have made tests
   flaky, because it is randomized per process.
 - **Turning my review concerns into measurements (Stage 5).** I asked for four checks: model
   loaded once, explicit normalization, tokenizer edge cases, and Chroma under concurrency. The AI
@@ -44,6 +44,11 @@
   middleware that just raised an error on overflow would therefore have returned 400, not 413.
   The final middleware sends the 413 itself and discards what the app sends afterwards, and a
   test drives it with raw ASGI messages to prove exactly one response goes out.
+- **Measuring the similarity threshold instead of trusting it (Stage 7).** A probe with the real
+  model showed the 0.5 default rejects clearly off-topic questions (0.36-0.48) but not same-domain
+  near misses: "What was the revenue in Q1?" scores 0.63 against a Q3 revenue passage, higher than
+  some correct answers (0.56). So the threshold cannot be the only guard against made-up answers;
+  the prompt's refusal rule has to handle near misses, which shapes the Stage 8 tests.
 
 ## What I Had to Fix
 
@@ -68,11 +73,12 @@
 
 ## What AI Struggled With
 
-- **Library APIs drifting between versions (Stages 1 and 5).** Answers from memory did not always
-  match the installed versions: Starlette 1.8 deprecates `httpx` in its test client, Sentence
-  Transformers 6.1 renamed the dimension method (`get_embedding_dimension`), and ChromaDB 1.5
+- **Library APIs drifting between versions (Stages 1, 5 and 7).** Answers from memory did not
+  always match the installed versions: Starlette 1.8 deprecates `httpx` in its test client, Sentence
+  Transformers 6.1 renamed the dimension method (`get_embedding_dimension`), ChromaDB 1.5
   configures cosine distance through `configuration=` and rejects collection names shorter than 3
-  characters. The fix was to probe the installed library with a small script before designing
+  characters, and SQLAlchemy 2.1 deprecates `Result.tuples()` (the AI's first retrieval code used
+  it and failed 6 tests). The fix was to probe the installed library with a small script before designing
   against it, and to pin exact versions.
 - **Tests that pass on the first run prove nothing by themselves (Stages 3-4).** All chunking tests
   passed immediately, so the code was deliberately broken (overlap disabled, page-break joining

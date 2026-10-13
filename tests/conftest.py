@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.db.database import create_db_engine, create_session_factory, init_db
 from app.main import create_app
+from app.services.embeddings import SentenceTransformerEmbedder
 from tests.fakes import FakeEmbedder
 
 
@@ -19,6 +20,15 @@ def settings(tmp_path: Path) -> Settings:
 @pytest.fixture
 def embedder() -> FakeEmbedder:
     return FakeEmbedder()
+
+
+@pytest.fixture(scope="session")
+def real_embedder() -> SentenceTransformerEmbedder:
+    """The real bge model, loaded once per test run; only for tests marked `model`."""
+    defaults = Settings(_env_file=None)
+    return SentenceTransformerEmbedder(
+        defaults.embedding_model, defaults.embedding_batch_size, defaults.embedding_query_prefix
+    )
 
 
 @pytest.fixture

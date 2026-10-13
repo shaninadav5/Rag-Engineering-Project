@@ -182,8 +182,30 @@ cosine distance.
 - Threshold: chunks with score below `similarity_threshold` (default 0.5, *calibrate*) are dropped.
   If none remain, the answer is the refusal sentence and the LLM is not called.
 - Scope: with `document_ids`, those documents must all exist (else 404) and be `completed`
-  (else 409). Without it, the search is restricted to the ids of all `completed` documents, which
-  also hides partial vectors of documents still processing.
+  (else 409); unknown ids are reported before not-ready ones. Without it, the search is restricted
+  to the ids of all `completed` documents, which also hides partial vectors of documents still
+  processing. If nothing is searchable, the question is not even embedded.
+- The threshold is applied after the top-k search, so fewer than `top_k` sources can come back.
+- A search hit whose chunk row no longer exists (document deleted between the search and the
+  lookup) is skipped.
+
+**First measurement (Stage 7, real bge model, 4 short business/HR passages)**
+
+| Question type | Score |
+|---------------|-------|
+| Relevant question, correct passage | 0.56 - 0.80 |
+| Relevant question, best *other* passage | 0.47 - 0.56 |
+| Clearly off-topic (geography, cooking, sport, Kubernetes) | 0.36 - 0.48 |
+| Near miss: same domain, fact absent ("parental leave", "revenue in Q1") | 0.54 - 0.63 |
+
+- 0.5 separates clearly off-topic questions from relevant ones, so those get the refusal without
+  calling the LLM.
+- No threshold separates near misses from real answers ("revenue in Q1" scores 0.63, above the
+  correct answer to "where was the office opened", 0.56). Those reach the LLM, and the prompt's
+  refusal rule (section 5) must handle them. The threshold is a first filter, not the only guard.
+- Unrelated passages of the same document often score just above 0.5, so they may appear as extra
+  sources next to the relevant one.
+- 0.5 stays the default; Stage 11 recalibrates on real documents.
 
 **Rationale**
 

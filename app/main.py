@@ -10,6 +10,7 @@ from app.errors import register_exception_handlers
 from app.middleware import BodySizeLimitMiddleware
 from app.services.documents import DocumentService
 from app.services.embeddings import Embedder, SentenceTransformerEmbedder, check_embedder_compatible
+from app.services.retrieval import Retriever
 from app.services.vector_store import ChromaVectorStore
 
 
@@ -36,6 +37,7 @@ def create_app(settings: Settings | None = None, embedder: Embedder | None = Non
         vector_store = ChromaVectorStore(settings.chroma_dir)
         document_service = DocumentService(settings, session_factory, active_embedder, vector_store)
         document_service.fail_interrupted()
+        retriever = Retriever(settings, session_factory, active_embedder, vector_store)
 
         app.state.settings = settings
         app.state.engine = engine
@@ -43,6 +45,7 @@ def create_app(settings: Settings | None = None, embedder: Embedder | None = Non
         app.state.embedder = active_embedder
         app.state.vector_store = vector_store
         app.state.document_service = document_service
+        app.state.retriever = retriever
         yield
         engine.dispose()
 

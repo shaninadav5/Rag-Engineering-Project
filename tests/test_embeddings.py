@@ -97,14 +97,6 @@ def test_app_loads_the_model_once_at_startup_and_keeps_it(
         assert app.state.embedder._model is model
 
 
-@pytest.fixture(scope="module")
-def real_embedder() -> SentenceTransformerEmbedder:
-    defaults = Settings(_env_file=None)
-    return SentenceTransformerEmbedder(
-        defaults.embedding_model, defaults.embedding_batch_size, defaults.embedding_query_prefix
-    )
-
-
 @pytest.mark.model
 def test_real_model_matches_configuration(
     real_embedder: SentenceTransformerEmbedder, settings: Settings

@@ -78,9 +78,9 @@ Check a task off only when its code and tests are done and reviewed. Each stage 
 
 ## Stage 7 - Retrieval
 
-- [ ] T035 `app/services/retrieval.py` query embedding, top-k, threshold, enrichment
-- [ ] T036 `document_ids` validation: unknown and not-completed documents
-- [ ] T037 `tests/test_retrieval.py` (known fact ranks first, filters, invalid ids); commit
+- [x] T035 `app/services/retrieval.py` query embedding, top-k, threshold, enrichment
+- [x] T036 `document_ids` validation: unknown and not-completed documents
+- [x] T037 `tests/test_retrieval.py` (known fact ranks first, filters, invalid ids); commit
 
 ## Stage 8 - Prompt and LLM client
 
