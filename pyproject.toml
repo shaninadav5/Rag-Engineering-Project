@@ -6,6 +6,9 @@ requires-python = ">=3.11"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "model: uses the real bge tokenizer/model (downloads from Hugging Face on first run); skip with -m 'not model'",
+]
 
 [tool.ruff]
 line-length = 100

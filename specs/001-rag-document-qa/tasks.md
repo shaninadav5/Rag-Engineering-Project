@@ -44,10 +44,10 @@ Check a task off only when its code and tests are done and reviewed. Each stage 
 
 ## Stage 4 - Chunking
 
-- [ ] T021 `app/services/chunking.py` paragraph splitting and token counting with the model tokenizer
-- [ ] T022 Packing units across the whole document (page breaks are not boundaries) with overlap
-- [ ] T023 Sentence-level splitting for oversized paragraphs; page tags -> `page_start` / `page_end`
-- [ ] T024 `tests/test_chunking.py` (size limit, overlap, paragraph preservation, cross-page chunk and
+- [x] T021 `app/services/chunking.py` paragraph splitting and token counting with the model tokenizer
+- [x] T022 Packing units across the whole document (page breaks are not boundaries) with overlap
+- [x] T023 Sentence-level splitting for oversized paragraphs; page tags -> `page_start` / `page_end`
+- [x] T024 `tests/test_chunking.py` (size limit, overlap, paragraph preservation, cross-page chunk and
   page range, empty); commit
 
 ## Stage 5 - Embeddings and vector store

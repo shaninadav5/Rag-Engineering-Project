@@ -49,10 +49,25 @@ Defaults: `chunk_size = 500`, `chunk_overlap = 50` (both configurable; overlap m
   fact printed on page 4. With `page_start` and `page_end`, citations read "pages 3-4", which is
   still precise.
 
+**Implementation details** (`app/services/chunking.py`)
+
+- The chunker receives a token-counting function instead of importing a model, so it stays pure
+  logic. Production passes the bge tokenizer; most tests pass a word counter.
+- Token counts are measured on the actual joined text each time a unit is added, not summed per
+  unit. This guarantees the limit with any tokenizer, at negligible cost (chunks are <= 500 tokens).
+- Units of the same paragraph are joined with a space; different paragraphs with a blank line.
+- **Sentence cut by a page break**: if a page's last paragraph does not end with sentence
+  punctuation and the next page's first paragraph starts lowercase, both share a paragraph id and
+  are joined with a space. They remain separate units, so each keeps its exact page.
+- A single "word" longer than a chunk (long URL, encoded blob) is halved until it fits.
+
 **Known limitations**
 
 - `pypdf` often does not emit blank lines between PDF paragraphs, so a PDF page may arrive as one
   long "paragraph". Step 2 then splits it on sentences, which still gives clean boundaries.
+- Sentence splitting is a regex on `.`, `!`, `?` followed by whitespace, so abbreviations such as
+  "Dr. Smith" are split. A wrong split only moves a chunk boundary; spaCy/NLTK would fix it at the
+  cost of a heavy dependency.
 - Running headers and footers (e.g. "Q3 Report - Page 4") can land in the middle of a chunk that
   crosses pages, adding noise. Stripping lines that repeat at the top/bottom of most pages is a
   candidate improvement for Stage 11, not part of the initial build.
