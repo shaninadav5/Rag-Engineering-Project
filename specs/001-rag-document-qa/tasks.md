@@ -29,9 +29,9 @@ Check a task off only when its code and tests are done and reviewed. Each stage 
 
 ## Stage 2 - Data model
 
-- [ ] T014 `app/db/models.py` `DocumentStatus`, `Document`, `Chunk` with cascade delete
-- [ ] T015 `app/schemas.py` document response schemas
-- [ ] T016 Tests: create, read, delete document with chunks; commit
+- [x] T014 `app/db/models.py` `DocumentStatus`, `Document`, `Chunk` with cascade delete
+- [x] T015 `app/schemas.py` document response schemas
+- [x] T016 Tests: create, read, delete document with chunks; commit
 
 ## Stage 3 - Text extraction
 

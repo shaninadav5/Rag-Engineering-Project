@@ -3,8 +3,10 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from app.config import Settings
+from app.db.database import create_db_engine, create_session_factory, init_db
 from app.main import create_app
 
 
@@ -19,3 +21,15 @@ def client(settings: Settings) -> Iterator[TestClient]:
     # startup never happens.
     with TestClient(create_app(settings)) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def db_session(settings: Settings) -> Iterator[Session]:
+    engine = create_db_engine(settings.database_url)
+    init_db(engine)
+    session = create_session_factory(engine)()
+    try:
+        yield session
+    finally:
+        session.close()
+        engine.dispose()

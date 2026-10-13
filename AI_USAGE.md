@@ -29,6 +29,13 @@
   short leftover chunks. Final design: chunks cross pages, and each stores `page_start` and
   `page_end`, so citations stay precise ("pages 3-4").
 
+- **A database constraint that silently allowed bad data.** The AI wrote the chunk page-range
+  CHECK as `(page_start IS NULL AND page_end IS NULL) OR (page_start >= 1 AND page_end >= page_start)`.
+  A test inserting `page_start = 1, page_end = NULL` showed the database accepted it: comparisons
+  with NULL evaluate to *unknown*, and a CHECK only rejects rows when the result is *false*. Fixed
+  by adding explicit `IS NOT NULL` checks. Lesson: write the failing case as a test, don't trust
+  the constraint by reading it.
+
 ## What AI Struggled With
 
 - *(to fill in during implementation)*
