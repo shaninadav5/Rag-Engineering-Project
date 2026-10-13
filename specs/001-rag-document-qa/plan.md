@@ -44,14 +44,15 @@ local Ollama model to answer with citations.
 specs/001-rag-document-qa/        spec.md, plan.md, research.md, data-model.md,
                                   contracts/openapi.yaml, quickstart.md, tasks.md
 app/
-  main.py  config.py  errors.py  schemas.py  dependencies.py
+  main.py  config.py  errors.py  schemas.py  dependencies.py  middleware.py
   api/       documents.py  ask.py
   db/        database.py  models.py
-  services/  extraction.py  chunking.py  embeddings.py  vector_store.py  ingestion.py
+  services/  extraction.py  chunking.py  embeddings.py  vector_store.py  documents.py
              retrieval.py  prompts.py  llm.py  qa.py
 tests/
-  conftest.py  fakes.py  fixtures/
-  test_extraction.py  test_chunking.py  test_vector_store.py  test_documents_api.py
+  conftest.py  fakes.py  pdf_factory.py
+  test_extraction.py  test_chunking.py  test_embeddings.py  test_vector_store.py
+  test_middleware.py  test_document_service.py  test_documents_api.py
   test_retrieval.py  test_prompts.py  test_llm.py  test_ask.py  test_error_handling.py
 Dockerfile  docker-compose.yml  requirements.txt  requirements-dev.txt  pyproject.toml
 README.md  AI_USAGE.md
@@ -150,8 +151,9 @@ Each stage is small enough to review in one sitting. A stage is finished only wh
 **Goal**: Upload a document and have it processed in the background.
 
 - **Spec**: User Stories 1 and 3, FR-001 to FR-004a, FR-009, edge cases 1, 2, 5, 7.
-- **Files**: `services/ingestion.py`, `api/documents.py`, `dependencies.py`,
-  `tests/test_documents_api.py`.
+- **Files**: `services/documents.py` (`DocumentService`: create, process, delete, startup
+  recovery), `api/documents.py`, `dependencies.py`, `middleware.py`, `tests/test_middleware.py`,
+  `tests/test_document_service.py`, `tests/test_documents_api.py`.
 - **Delivers**: `POST /documents` (returns `202`), `GET /documents`, `GET /documents/{id}`,
   `DELETE /documents/{id}`; upload-size middleware rejecting oversized bodies before they are read,
   plus an exact size check in the handler; lightweight validation in a worker thread so empty,

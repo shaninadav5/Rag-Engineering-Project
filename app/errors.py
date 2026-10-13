@@ -34,6 +34,13 @@ class FileTooLargeError(AppError):
     status_code = 413
     code = "FILE_TOO_LARGE"
 
+    @classmethod
+    def for_limit(cls, max_upload_mb: int) -> "FileTooLargeError":
+        return cls(
+            f"Upload exceeds the maximum size of {max_upload_mb} MB.",
+            {"max_bytes": max_upload_mb * 1024 * 1024},
+        )
+
 
 class TooManyPagesError(AppError):
     status_code = 413
@@ -48,6 +55,10 @@ class UnsupportedFileTypeError(AppError):
 class DocumentNotFoundError(AppError):
     status_code = 404
     code = "DOCUMENT_NOT_FOUND"
+
+    @classmethod
+    def for_id(cls, document_id: str) -> "DocumentNotFoundError":
+        return cls(f"Document '{document_id}' was not found.", {"document_id": document_id})
 
 
 class DocumentNotReadyError(AppError):

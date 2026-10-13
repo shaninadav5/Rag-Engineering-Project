@@ -62,17 +62,19 @@ Check a task off only when its code and tests are done and reviewed. Each stage 
 
 ## Stage 6 - Ingestion pipeline and document API
 
-- [ ] T030 `app/dependencies.py` providers for session, embedder, vector store, LLM
-- [ ] T031 `app/services/ingestion.py` background pipeline with status updates and failure reason
-- [ ] T031a Upload-size middleware: reject on `Content-Length` over the limit before reading the body;
-  count streamed bytes when the header is missing or wrong
-- [ ] T032 `app/api/documents.py` upload (`202`): exact size check, lightweight `validate` in a worker
+- [x] T030 `app/dependencies.py` providers for session and document service (embedder, vector
+  store, and LLM providers are added in Stages 7-8, when an endpoint first needs them)
+- [x] T031 `app/services/documents.py` background pipeline with status updates and failure reason
+- [x] T031a Upload-size middleware: reject on `Content-Length` over the limit before reading the body;
+  count streamed bytes when the header is missing
+- [x] T032 `app/api/documents.py` upload (`202`): exact size check, lightweight `validate` in a worker
   thread, file storage, schedule background extract + chunk + embed
-- [ ] T032a On startup, mark documents left in `pending`/`processing` as `failed` ("interrupted by restart")
-- [ ] T033 List, get metadata, delete (SQLite + Chroma + file, safe mid-processing; the background
+- [x] T032a On startup, mark documents left in `pending`/`processing` as `failed` ("interrupted by restart")
+- [x] T033 List, get metadata, delete (SQLite + Chroma + file, safe mid-processing; the background
   task treats "document deleted" as a clean stop, not a failure)
-- [ ] T034 `tests/test_documents_api.py` (happy paths, rejections incl. oversized body rejected by
-  middleware, too many pages, embedding failure); commit
+- [x] T034 `tests/test_documents_api.py`, `tests/test_document_service.py`, `tests/test_middleware.py`
+  (happy paths, rejections incl. oversized body rejected by middleware, too many pages, embedding
+  failure, delete racing a batch write); commit
 
 ## Stage 7 - Retrieval
 

@@ -28,7 +28,7 @@
 
 - **A fake embedder that keeps tests fast and deterministic (Stage 5).** A bag-of-words vector
   hashed with `md5` makes texts that share words similar, so ranking can be tested without the real
-  model; 98 tests run offline in about 5 seconds. Python's built-in `hash()` would have made tests
+  model; 130 tests run offline in about 8 seconds (after Stage 6). Python's built-in `hash()` would have made tests
   flaky, because it is randomized per process.
 - **Turning my review concerns into measurements (Stage 5).** I asked for four checks: model
   loaded once, explicit normalization, tokenizer edge cases, and Chroma under concurrency. The AI
@@ -38,6 +38,12 @@
   Two findings went into the design docs: the app must run as a single uvicorn worker (Chroma does
   not support several processes on one directory), and embedding, not chunking, dominates
   ingestion time (about 0.8 s per chunk on CPU).
+- **Reading framework source before designing around it (Stage 6).** Before writing the upload
+  size middleware, the AI read FastAPI's body-parsing code and found that any exception raised
+  while a body is parsed becomes a generic `400 "There was an error parsing the body"`. A
+  middleware that just raised an error on overflow would therefore have returned 400, not 413.
+  The final middleware sends the 413 itself and discards what the app sends afterwards, and a
+  test drives it with raw ASGI messages to prove exactly one response goes out.
 
 ## What I Had to Fix
 
@@ -72,6 +78,17 @@
   passed immediately, so the code was deliberately broken (overlap disabled, page-break joining
   disabled) to confirm the tests fail: 5 and 1 tests failed respectively. The same was done in
   Stage 5: with `normalize_embeddings=False` the new embedder test fails.
+- **A race condition in its own earlier design (Stages 0 and 6).** The Stage 0 design for
+  "delete while processing" relied on the chunk insert failing on the foreign key, then cleaning
+  up. Designing Stage 6 in detail showed a gap: a batch written between the delete's two steps
+  leaves orphan vectors. The fix is one lock shared by batch writes and deletes, with the slow
+  embedding work outside it. A two-thread test races a delete against a batch write; with the lock
+  removed it fails with 5 orphan vectors.
+- **Tests that could not fail (Stage 6).** The first delete-during-processing test was
+  single-threaded, so it passed with or without the lock; the two-thread test above was added to
+  prove the lock is needed. Removing the "delete the saved file on rejection" line made 4 tests fail, but the
+  page-limit and size-limit tests still passed because they did not check the uploads folder; they
+  now do.
 - **A benchmark that measured the wrong thing (Stage 5).** The first probe reported the same token
   count for "1 MB" and "10 MB" texts: it sliced a 1.1 MB string to 10 MB, which changes nothing.
   The suspicious number exposed it; the corrected run showed counting scales linearly (about 1.7 s

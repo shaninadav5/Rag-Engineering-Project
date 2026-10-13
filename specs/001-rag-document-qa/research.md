@@ -274,10 +274,15 @@ FastAPI/Starlette parses the entire multipart body into a temporary file *before
 function runs, so a size check inside the handler alone is too late: an oversized upload would
 already be fully received and written to disk.
 
-1. **Middleware on `POST /documents`**: if `Content-Length` exceeds `max_upload_mb` plus a small
-   allowance for multipart overhead (64 KB), respond `413` without reading the body. If the header
-   is missing (chunked transfer) or understates the size, the middleware counts bytes as they
-   arrive and aborts with `413` once the limit is passed.
+1. **Middleware on every request** (`app/middleware.py`): if `Content-Length` exceeds
+   `max_upload_mb` plus a small allowance for multipart overhead (64 KB), respond `413` without
+   reading the body. If the header is missing (chunked transfer), the middleware counts bytes as
+   they arrive and aborts with `413` once the limit is passed. It applies to all requests because
+   no legitimate body comes near the limit, which also protects `/ask`.
+   FastAPI converts any exception raised while it parses a body into a generic
+   `400 "There was an error parsing the body"`, so the middleware cannot simply raise: it sends the
+   `413` itself and discards whatever the app sends afterwards. Verified with curl against uvicorn:
+   a declared 25 MB upload is rejected after 0 bytes sent; a chunked one is cut off at ~21 MB.
 2. **Handler check**: the actual file size is checked against `max_upload_mb` exactly, catching
    files just over the limit that fit within the overhead allowance.
 
@@ -297,8 +302,9 @@ In production this would normally also be enforced by a reverse proxy (e.g. ngin
 For a normal PDF, step 4 reads one page. Only image-only (scanned) PDFs are read to the end, and
 those pages contain almost no text operations, so it stays fast.
 
-**Event loop**: Parsing PDFs is CPU-bound, so validation runs in a worker thread
-(`run_in_threadpool`); other requests are served while a large file is being checked.
+**Event loop**: Parsing PDFs is CPU-bound, so validation runs in a worker thread: the upload
+endpoint is a plain `def`, which FastAPI runs in its threadpool. Other requests are served while a
+large file is being checked.
 
 **Library**: `pypdf` (pure Python, BSD). If Stage 11 measurements show extraction is too slow,
 `pypdfium2` (Apache/BSD, much faster) is the drop-in candidate. PyMuPDF is faster still but
@@ -327,18 +333,34 @@ error" option).
 - The task function is a plain `def`, so FastAPI runs it in a worker thread and the CPU-heavy
   embedding work does not block the event loop.
 - **Limitation**: Tasks running during a server restart are lost and stay `processing`. On startup,
-  any document left in `pending` or `processing` is marked `failed` with reason "interrupted by restart".
+  any document left in `pending` or `processing` is marked `failed` with reason "Processing was
+  interrupted by a server restart.", and the chunks and vectors of batches it had already written
+  are removed.
 
 ### 6.4 Consistency between SQLite and Chroma
 
-- Chunks are written to SQLite and Chroma batch by batch. The document becomes `completed` only
-  after all batches succeed; on failure, its partial chunks and vectors are removed.
-- Delete removes the SQLite rows, the Chroma vectors, and the stored file.
-- Delete during processing: the background task re-checks that its document still exists before
-  and after each batch; if it was deleted, it removes any vectors it wrote and stops.
-- "Document was deleted" is a clean stop, not an error. If the delete happens between the check
-  and a write, the chunk insert fails on the foreign key; the task recognizes that the document is
-  gone, cleans up its vectors, and exits without trying to mark the (missing) document `failed`.
+- Chunks are written to SQLite and Chroma batch by batch (`embedding_batch_size` chunks). The
+  document becomes `completed` only after all batches succeed; on failure, its partial chunks and
+  vectors are removed.
+- Delete removes the Chroma vectors, the SQLite rows, and the stored file, in that order.
+- **One lock** (in `DocumentService`) is held by each batch write, by the final status update, and
+  by delete. Each batch write first checks, under the lock, that the document still exists. The
+  slow work (extraction, embedding) runs outside the lock, so a delete waits at most for one
+  batch write (milliseconds).
+- Delete during processing, by timing:
+  - before the task starts: the task finds no document and stops;
+  - during extraction or embedding: the delete removes everything written so far; the next locked
+    check finds the document gone and the task stops, discarding its work;
+  - during a batch write: the delete waits for the write to commit, then removes it too.
+- "Document was deleted" is a clean stop, not an error, and logs nothing.
+- **Rejected**: no lock, relying on the chunk insert failing on the foreign key and cleaning up
+  afterwards. A batch whose SQLite write committed just before the document row was deleted, but
+  after the vectors were deleted, leaves orphan vectors. A test with a delete racing a batch write
+  shows exactly this (5 orphan vectors) when the lock is removed.
+- The lock covers one process only; the app runs as a single uvicorn worker (section 3).
+- Each locked step opens a fresh database session. Reusing one session would let
+  `session.get()` return the cached object from SQLAlchemy's identity map instead of querying,
+  and miss a delete made by another session.
 
 ### 6.5 One error format for every error
 
