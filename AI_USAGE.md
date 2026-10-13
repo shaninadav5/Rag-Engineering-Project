@@ -28,7 +28,7 @@
 
 - **A fake embedder that keeps tests fast and deterministic (Stage 5).** A bag-of-words vector
   hashed with `md5` makes texts that share words similar, so ranking can be tested without the real
-  model; 145 tests run offline in about 8 seconds (after Stage 7). Python's built-in `hash()` would have made tests
+  model; 175 tests run offline in about 25 seconds (after Stage 8). Python's built-in `hash()` would have made tests
   flaky, because it is randomized per process.
 - **Turning my review concerns into measurements (Stage 5).** I asked for four checks: model
   loaded once, explicit normalization, tokenizer edge cases, and Chroma under concurrency. The AI
@@ -49,6 +49,11 @@
   near misses: "What was the revenue in Q1?" scores 0.63 against a Q3 revenue passage, higher than
   some correct answers (0.56). So the threshold cannot be the only guard against made-up answers;
   the prompt's refusal rule has to handle near misses, which shapes the Stage 8 tests.
+- **Being explicit about what mocked tests cannot prove (Stage 8).** The Ollama client is tested
+  with `httpx.MockTransport`: request body, every error mapping, malformed replies, all without a
+  network. The AI pointed out that this proves the refusal rule is *in* the prompt, not that
+  llama3.2 *follows* it for near misses; that check became an explicit Stage 10 task (T047) to run
+  against the real model in docker-compose.
 
 ## What I Had to Fix
 

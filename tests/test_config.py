@@ -35,6 +35,7 @@ def test_paths_are_derived_from_data_dir(tmp_path: Path) -> None:
         pytest.param({"chunk_size": 0}, id="chunk-size-zero"),
         pytest.param({"top_k": 25}, id="top-k-above-max"),
         pytest.param({"max_context_tokens": 8000}, id="context-exceeds-num-ctx"),
+        pytest.param({"max_context_tokens": 400}, id="context-smaller-than-one-chunk"),
         pytest.param({"similarity_threshold": 1.5}, id="threshold-out-of-range"),
     ],
 )

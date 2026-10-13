@@ -261,8 +261,13 @@ Generation settings: `temperature = 0.1`, `num_ctx = 8192`, `num_predict = 512`.
 
 - Sources are added in rank order until `max_context_tokens` (default 3000) would be exceeded;
   lower-ranked chunks are dropped whole, never cut mid-text, so every citation points at complete text.
-- Token counts use the embedding tokenizer as an estimate. The LLM's tokenizer differs, so the
-  budget leaves a wide margin below `num_ctx`.
+  Adding stops at the first chunk that does not fit: a smaller, lower-ranked chunk never takes the
+  place of a higher-ranked one.
+- The budget counts each chunk's stored `token_count` (embedding tokenizer), so building the
+  prompt needs no tokenizing. Source headers, the system prompt, and the question are not counted;
+  they are small (the question is at most 2000 characters) and fit in the margin. The LLM's
+  tokenizer differs, so the budget leaves a wide margin below `num_ctx`: 3000 + 512 of 8192.
+- Startup check: `max_context_tokens >= chunk_size`, so the top-ranked chunk always fits.
 - `num_ctx` is always sent explicitly: Ollama's default context window is small and it silently
   drops the start of prompts that exceed it, which would cut off the sources.
 
@@ -270,7 +275,12 @@ Generation settings: `temperature = 0.1`, `num_ctx = 8192`, `num_predict = 512`.
 
 - The `sources` in the response are exactly the chunks included in the prompt, in the same order,
   so `[n]` in the answer refers to `sources[n-1]`.
-- If the model replies with the refusal sentence, `sources` is returned empty.
+- If the model replies with the refusal sentence, `sources` is returned empty. "Replies with" means
+  the whole answer is the sentence, ignoring case, surrounding quotes, the final period, and a
+  curly apostrophe. A refusal followed by other content keeps its sources.
+- The threshold cannot catch same-domain near misses (section 4), so the refusal rule is the
+  guard for them. Mocked tests only prove the rule is in the prompt; whether llama3.2 follows it
+  is checked against the real model in Stage 10 and tuned in Stage 11.
 - `tokens_used` = Ollama's `prompt_eval_count + eval_count`.
 
 **Rationale**
@@ -400,9 +410,15 @@ A stable `code` lets clients and tests branch on the error without parsing messa
 | Ollama situation | API response |
 |------------------|--------------|
 | Connection refused / DNS failure | 503 `LLM_UNAVAILABLE` |
-| Request timeout (`llm_timeout_seconds`, default 120) | 503 `LLM_UNAVAILABLE` |
+| Connect timeout (5 s) or response timeout (`llm_timeout_seconds`, default 120) | 503 `LLM_UNAVAILABLE` |
 | Model not pulled (Ollama 404) | 503 `LLM_UNAVAILABLE`, message names the model and the `ollama pull` command |
-| Other non-200 or malformed response | 502 `LLM_ERROR` |
+| Other non-200 | 502 `LLM_ERROR`, details include the HTTP status |
+| Malformed response (not JSON, no `message.content`) or empty answer | 502 `LLM_ERROR` |
+
+The connect timeout is short so an unreachable host fails fast instead of hanging for the full
+response timeout. `tokens_used` treats a missing `prompt_eval_count` as 0, because Ollama omits it
+when the prompt was served from its cache. One `httpx.Client` is created at startup (connection
+reuse) and closed at shutdown.
 
 The app does not check Ollama at startup: the LLM is only needed for `/ask`, so uploads keep
 working while Ollama is down or still pulling the model.

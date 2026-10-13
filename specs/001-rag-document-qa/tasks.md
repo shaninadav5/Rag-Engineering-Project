@@ -84,9 +84,9 @@ Check a task off only when its code and tests are done and reviewed. Each stage 
 
 ## Stage 8 - Prompt and LLM client
 
-- [ ] T038 `app/services/prompts.py` system rules, numbered sources, context budget
-- [ ] T039 `app/services/llm.py` Ollama client with timeout and error mapping
-- [ ] T040 `tests/test_prompts.py` and `tests/test_llm.py` (mocked HTTP transport); commit
+- [x] T038 `app/services/prompts.py` system rules, numbered sources, context budget, refusal detection
+- [x] T039 `app/services/llm.py` Ollama client with timeout and error mapping
+- [x] T040 `tests/test_prompts.py` and `tests/test_llm.py` (mocked HTTP transport); commit
 
 ## Stage 9 - Question answering endpoint
 
@@ -100,7 +100,9 @@ Check a task off only when its code and tests are done and reviewed. Each stage 
 - [ ] T045 `Dockerfile` with CPU-only PyTorch and pre-downloaded embedding model; uvicorn runs a
   single worker (Chroma is single-process, research.md section 3)
 - [ ] T046 `docker-compose.yml` with `app`, `ollama`, volumes, model pull
-- [ ] T047 Run quickstart against containers; commit
+- [ ] T047 Run quickstart against containers, including the first real-Ollama checks: request format,
+  error mapping with Ollama stopped / model not pulled, and near-miss questions ("revenue in Q1")
+  answered with the refusal; commit
 
 ## Stage 11 - Real-document evaluation and tuning
 

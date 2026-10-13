@@ -18,6 +18,7 @@ class RetrievedChunk:
     text: str
     page_start: int | None
     page_end: int | None
+    token_count: int
     score: float
 
 
@@ -97,5 +98,6 @@ def _to_retrieved(chunk: Chunk, document_name: str, score: float) -> RetrievedCh
         text=chunk.text,
         page_start=chunk.page_start,
         page_end=chunk.page_end,
+        token_count=chunk.token_count,
         score=score,
     )

@@ -42,6 +42,11 @@ class Settings(BaseSettings):
             raise ValueError("chunk_overlap must be smaller than chunk_size")
         if self.top_k > self.top_k_max:
             raise ValueError("top_k must not exceed top_k_max")
+        if self.max_context_tokens < self.chunk_size:
+            raise ValueError(
+                "max_context_tokens must be at least chunk_size, "
+                "otherwise no source fits in the prompt"
+            )
         if self.max_context_tokens + self.llm_num_predict >= self.llm_num_ctx:
             raise ValueError(
                 "max_context_tokens + llm_num_predict must be smaller than llm_num_ctx, "
