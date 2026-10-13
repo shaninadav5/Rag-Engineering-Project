@@ -1,0 +1,309 @@
+openapi: 3.1.0
+info:
+  title: RAG Document Q&A
+  version: 0.1.0
+  description: >
+    Upload documents and ask questions about them. Answers are generated from retrieved
+    passages and include source citations. All errors use the `ErrorResponse` shape.
+
+paths:
+  /health:
+    get:
+      summary: Liveness check
+      responses:
+        "200":
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, const: ok }
+
+  /documents:
+    post:
+      summary: Upload a document
+      description: >
+        Enforces the size limit before the body is read, then runs lightweight checks (type,
+        non-empty, PDF readable, page limit, contains text). Full extraction, chunking, and
+        embedding run in the background. Poll `GET /documents/{id}` until `status` is
+        `completed` or `failed`.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PDF, TXT, or Markdown file
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  description: Display name; defaults to the filename
+      responses:
+        "202":
+          description: Accepted; processing has started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentDetail" }
+        "400":
+          description: "`EMPTY_DOCUMENT` (no bytes or no extractable text) or `UNREADABLE_DOCUMENT` (corrupt or encrypted file)"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              example:
+                error:
+                  code: EMPTY_DOCUMENT
+                  message: "The document contains no extractable text. Scanned PDFs are not supported."
+                  details: {}
+        "413":
+          description: "`FILE_TOO_LARGE` (checked before the body is read) or `TOO_MANY_PAGES`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              examples:
+                too_large:
+                  value:
+                    error:
+                      code: FILE_TOO_LARGE
+                      message: "Upload exceeds the maximum size of 20 MB."
+                      details: { max_bytes: 20971520 }
+                too_many_pages:
+                  value:
+                    error:
+                      code: TOO_MANY_PAGES
+                      message: "PDF has 1450 pages; the maximum is 1000."
+                      details: { pages: 1450, max_pages: 1000 }
+        "415":
+          description: "`UNSUPPORTED_FILE_TYPE`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              example:
+                error:
+                  code: UNSUPPORTED_FILE_TYPE
+                  message: "Unsupported file type '.docx'. Supported types: .pdf, .txt, .md"
+                  details: { supported_types: [".pdf", ".txt", ".md"] }
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+    get:
+      summary: List documents
+      description: All documents, newest first.
+      responses:
+        "200":
+          description: Document list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DocumentSummary" }
+
+  /documents/{document_id}:
+    parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: Get document metadata
+      responses:
+        "200":
+          description: Document metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentDetail" }
+        "404":
+          $ref: "#/components/responses/DocumentNotFound"
+    delete:
+      summary: Delete a document, its chunks, embeddings, and stored file
+      description: Allowed in every status, including while processing.
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/DocumentNotFound"
+
+  /ask:
+    post:
+      summary: Ask a question about uploaded documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AskRequest" }
+            example:
+              question: "What were the key findings in Q3?"
+              document_ids: ["3f6c2a9e-1b7d-4c1e-9a52-8d0f4e7b6a11"]
+              top_k: 5
+      responses:
+        "200":
+          description: >
+            Answer with sources. When no passage passes the similarity threshold, `answer` is
+            "I don't have information about that." and `sources` is empty.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AskResponse" }
+        "404":
+          description: "`DOCUMENT_NOT_FOUND` - one or more `document_ids` do not exist"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              example:
+                error:
+                  code: DOCUMENT_NOT_FOUND
+                  message: "Unknown document id(s): 0000-..."
+                  details: { missing_ids: ["0000-..."] }
+        "409":
+          description: "`DOCUMENT_NOT_READY` - one or more `document_ids` are not `completed`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              example:
+                error:
+                  code: DOCUMENT_NOT_READY
+                  message: "Document(s) not ready for questions: 3f6c... (processing)"
+                  details: { not_ready: { "3f6c...": processing } }
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "502":
+          description: "`LLM_ERROR` - the model returned an error or malformed response"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "503":
+          description: >
+            `LLM_UNAVAILABLE` - model server unreachable, timed out, or model not pulled;
+            `EMBEDDING_UNAVAILABLE` - the question could not be embedded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              example:
+                error:
+                  code: LLM_UNAVAILABLE
+                  message: "Model 'llama3.2:3b' is not available. Run: ollama pull llama3.2:3b"
+                  details: {}
+
+components:
+  schemas:
+    DocumentStatus:
+      type: string
+      enum: [pending, processing, completed, failed]
+
+    DocumentSummary:
+      type: object
+      required: [id, name, filename, chunks, status, uploaded_at]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        filename: { type: string }
+        chunks: { type: integer, minimum: 0 }
+        status: { $ref: "#/components/schemas/DocumentStatus" }
+        uploaded_at: { type: string, format: date-time }
+
+    DocumentDetail:
+      allOf:
+        - $ref: "#/components/schemas/DocumentSummary"
+        - type: object
+          required: [file_type, size_bytes, pages, error, processed_at]
+          properties:
+            file_type: { type: string, enum: [pdf, txt, md] }
+            size_bytes: { type: integer, minimum: 1 }
+            pages: { type: [integer, "null"], description: "PDF page count; null for TXT/MD" }
+            error: { type: [string, "null"], description: "Failure reason when status is failed" }
+            processed_at: { type: [string, "null"], format: date-time }
+
+    AskRequest:
+      type: object
+      required: [question]
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Must contain non-whitespace characters
+        document_ids:
+          type: array
+          minItems: 1
+          items: { type: string }
+          description: Restrict retrieval to these documents. Omit to search all completed documents.
+        top_k:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 5
+
+    Source:
+      type: object
+      required: [document_id, document_name, chunk_text, page, page_end, relevance_score]
+      properties:
+        document_id: { type: string }
+        document_name: { type: string }
+        chunk_text: { type: string }
+        page:
+          type: [integer, "null"]
+          description: Page where the chunk starts; null for TXT/MD
+        page_end:
+          type: [integer, "null"]
+          description: Page where the chunk ends (chunks may cross pages); null for TXT/MD
+        relevance_score:
+          type: number
+          description: Cosine similarity between question and chunk; higher is more relevant
+
+    AskResponse:
+      type: object
+      required: [answer, sources, model, tokens_used]
+      properties:
+        answer:
+          type: string
+          description: Citations like [1] refer to sources[0]
+        sources:
+          type: array
+          items: { $ref: "#/components/schemas/Source" }
+        model: { type: string }
+        tokens_used:
+          type: integer
+          minimum: 0
+          description: Prompt + completion tokens; 0 when the LLM was not called
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details]
+          properties:
+            code:
+              type: string
+              enum:
+                - VALIDATION_ERROR
+                - EMPTY_DOCUMENT
+                - UNREADABLE_DOCUMENT
+                - FILE_TOO_LARGE
+                - TOO_MANY_PAGES
+                - UNSUPPORTED_FILE_TYPE
+                - DOCUMENT_NOT_FOUND
+                - DOCUMENT_NOT_READY
+                - LLM_UNAVAILABLE
+                - LLM_ERROR
+                - EMBEDDING_UNAVAILABLE
+            message: { type: string }
+            details: { type: object }
+
+  responses:
+    DocumentNotFound:
+      description: "`DOCUMENT_NOT_FOUND`"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    ValidationError:
+      description: "`VALIDATION_ERROR` - request body or parameters are invalid"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
