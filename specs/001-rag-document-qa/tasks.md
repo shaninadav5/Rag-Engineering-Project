@@ -35,12 +35,12 @@ Check a task off only when its code and tests are done and reviewed. Each stage 
 
 ## Stage 3 - Text extraction
 
-- [ ] T017 Add fixtures: multi-page PDF, paragraph crossing a page break, image-only PDF, corrupt PDF,
-  TXT, MD, non-UTF-8 TXT, empty file
-- [ ] T018 `app/services/extraction.py` full per-page `extract` for PDF, TXT, MD
-- [ ] T019 Lightweight `validate`: readability, page count vs `max_pages`, stop at first page with text
-- [ ] T019a Errors: unsupported type, unreadable, too many pages, empty document
-- [ ] T020 `tests/test_extraction.py` (including early exit of `validate`); commit
+- [x] T017 Add fixtures: multi-page PDF, paragraph crossing a page break, image-only PDF, corrupt PDF,
+  TXT, MD, non-UTF-8 TXT, empty file (generated per test by `tests/pdf_factory.py` with fpdf2)
+- [x] T018 `app/services/extraction.py` full per-page `extract` for PDF, TXT, MD
+- [x] T019 Lightweight `validate`: readability, page count vs `max_pages`, stop at first page with text
+- [x] T019a Errors: unsupported type, unreadable, too many pages, empty document
+- [x] T020 `tests/test_extraction.py` (including early exit of `validate`); commit
 
 ## Stage 4 - Chunking
 
