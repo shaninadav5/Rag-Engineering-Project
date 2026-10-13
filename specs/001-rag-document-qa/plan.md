@@ -69,7 +69,8 @@ Each stage is small enough to review in one sitting. A stage is finished only wh
 3. Write the tests and the code.
 4. Run the full test suite.
 5. Review: you read every new line and ask about anything unclear.
-6. Commit with a message naming the stage.
+6. Update `AI_USAGE.md` with what helped, what had to be fixed, and what AI struggled with.
+7. Commit with a message naming the stage.
 
 ---
 
