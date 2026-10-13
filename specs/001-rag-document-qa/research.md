@@ -303,7 +303,9 @@ error" option).
 {"error": {"code": "UNSUPPORTED_FILE_TYPE", "message": "...", "details": {...}}}
 ```
 
-FastAPI's request-validation errors are converted to the same shape with code `VALIDATION_ERROR`.
+FastAPI's request-validation errors are converted to the same shape with code `VALIDATION_ERROR`,
+framework errors (unknown route, wrong method) with code `HTTP_ERROR`, and unexpected exceptions
+with code `INTERNAL_ERROR` and a generic message (the traceback goes to the server log only).
 A stable `code` lets clients and tests branch on the error without parsing messages.
 
 ### 6.6 LLM error mapping

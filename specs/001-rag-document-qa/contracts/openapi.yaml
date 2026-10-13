@@ -293,6 +293,11 @@ components:
                 - LLM_UNAVAILABLE
                 - LLM_ERROR
                 - EMBEDDING_UNAVAILABLE
+                - HTTP_ERROR
+                - INTERNAL_ERROR
+              description: >
+                `HTTP_ERROR` covers framework-level errors such as unknown routes (404) or
+                wrong methods (405). `INTERNAL_ERROR` (500) never includes internal details.
             message: { type: string }
             details: { type: object }
 

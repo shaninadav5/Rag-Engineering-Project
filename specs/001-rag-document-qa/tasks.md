@@ -18,14 +18,14 @@ Check a task off only when its code and tests are done and reviewed. Each stage 
 - [x] T006 Create scaffold: `pyproject.toml`, requirements files, ignore files, `.env.example`
 - [x] T007 `app/config.py` settings with chunk-overlap validation
 - [x] T008 `app/main.py` app factory with `/health`
-- [ ] T009 Create virtual environment and install `requirements-dev.txt`
-- [ ] T009a Add settings from research.md: `max_pages`, `top_k_max`, `max_question_chars`,
+- [x] T009 Create virtual environment and install `requirements-dev.txt`; pin direct dependencies
+- [x] T009a Add settings from research.md: `max_pages`, `top_k_max`, `max_question_chars`,
   `llm_temperature`, `llm_num_ctx`, `llm_num_predict`
-- [ ] T010 `app/errors.py` domain exceptions and HTTP exception handlers using the
+- [x] T010 `app/errors.py` domain exceptions and HTTP exception handlers using the
   `{"error": {code, message, details}}` envelope, including request-validation errors
-- [ ] T011 `app/db/database.py` engine, session factory, `Base`, table creation on startup
-- [ ] T012 `tests/conftest.py` with temporary data directory and `TestClient`
-- [ ] T013 Run tests; verify `/health` and `/docs` with Uvicorn; commit
+- [x] T011 `app/db/database.py` engine, session factory, `Base`, table creation on startup
+- [x] T012 `tests/conftest.py` with temporary data directory and `TestClient`
+- [x] T013 Run tests; verify `/health` and `/docs` with Uvicorn; commit
 
 ## Stage 2 - Data model
 
