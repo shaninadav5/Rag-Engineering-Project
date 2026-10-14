@@ -3,6 +3,7 @@ import math
 import re
 
 from app.errors import EmbeddingUnavailableError
+from app.services.llm import Generation
 
 _WORD = re.compile(r"\w+")
 
@@ -39,3 +40,21 @@ class FakeEmbedder:
             vector[0] = 1.0
             return vector
         return [value / norm for value in vector]
+
+
+class FakeLLM:
+    """Returns a fixed answer (or raises `error`) and records every prompt it receives."""
+
+    MODEL = "fake-llm"
+    TOKENS = 42
+
+    def __init__(self, answer: str = "Revenue grew 12% [1].", error: Exception | None = None):
+        self.answer = answer
+        self.error = error
+        self.prompts: list[tuple[str, str]] = []
+
+    def generate(self, system: str, user: str) -> Generation:
+        self.prompts.append((system, user))
+        if self.error is not None:
+            raise self.error
+        return Generation(self.answer, self.MODEL, self.TOKENS)

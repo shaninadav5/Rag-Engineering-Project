@@ -90,10 +90,10 @@ Check a task off only when its code and tests are done and reviewed. Each stage 
 
 ## Stage 9 - Question answering endpoint
 
-- [ ] T041 `app/services/qa.py` retrieve -> prompt -> generate -> response; no-information path
-- [ ] T042 `app/api/ask.py` `POST /ask` with request validation
-- [ ] T043 `tests/test_ask.py` end-to-end upload -> process -> ask
-- [ ] T044 `tests/test_error_handling.py` covering every edge case in the spec; commit
+- [x] T041 `app/services/qa.py` retrieve -> prompt -> generate -> response; no-information path
+- [x] T042 `app/api/ask.py` `POST /ask` with request validation
+- [x] T043 `tests/test_ask.py` end-to-end upload -> process -> ask
+- [x] T044 `tests/test_error_handling.py` covering every edge case in the spec; commit
 
 ## Stage 10 - Containerization
 
@@ -101,8 +101,9 @@ Check a task off only when its code and tests are done and reviewed. Each stage 
   single worker (Chroma is single-process, research.md section 3)
 - [ ] T046 `docker-compose.yml` with `app`, `ollama`, volumes, model pull
 - [ ] T047 Run quickstart against containers, including the first real-Ollama checks: request format,
-  error mapping with Ollama stopped / model not pulled, and near-miss questions ("revenue in Q1")
-  answered with the refusal; commit
+  error mapping with Ollama stopped / model not pulled, near-miss questions ("revenue in Q1")
+  answered with the refusal, and Llama token counts for a 2000-character English question, an
+  emoji question, and a non-Latin (e.g. Hebrew) question against `num_ctx`; commit
 
 ## Stage 11 - Real-document evaluation and tuning
 

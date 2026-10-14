@@ -1,5 +1,4 @@
 import logging
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -19,23 +18,6 @@ from tests.pdf_factory import write_pdf
 LONG_TEXT = "\n\n".join(
     " ".join(f"p{paragraph}w{word}" for word in range(12)) + "." for paragraph in range(10)
 )
-
-
-@pytest.fixture
-def make_client(tmp_path: Path) -> Iterator[Any]:
-    """Builds a client with setting overrides; for tests that need non-default limits."""
-    clients: list[TestClient] = []
-
-    def build(embedder: FakeEmbedder | None = None, **overrides: Any) -> TestClient:
-        settings = Settings(_env_file=None, data_dir=tmp_path, **overrides)
-        client = TestClient(create_app(settings, embedder=embedder or FakeEmbedder()))
-        client.__enter__()
-        clients.append(client)
-        return client
-
-    yield build
-    for client in clients:
-        client.__exit__(None, None, None)
 
 
 def upload(client: TestClient, filename: str, content: bytes, name: str | None = None) -> Any:

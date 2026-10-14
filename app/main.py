@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import documents
+from app.api import ask, documents
 from app.config import Settings, get_settings
 from app.db.database import create_db_engine, create_session_factory, init_db
 from app.errors import register_exception_handlers
@@ -11,6 +11,7 @@ from app.middleware import BodySizeLimitMiddleware
 from app.services.documents import DocumentService
 from app.services.embeddings import Embedder, SentenceTransformerEmbedder, check_embedder_compatible
 from app.services.llm import LLM, OllamaClient
+from app.services.qa import QAService
 from app.services.retrieval import Retriever
 from app.services.vector_store import ChromaVectorStore
 
@@ -58,6 +59,9 @@ def create_app(
         app.state.document_service = document_service
         app.state.retriever = retriever
         app.state.llm = active_llm
+        app.state.qa_service = QAService(
+            settings, retriever, active_llm, active_embedder.count_tokens
+        )
         yield
         if ollama_client is not None:
             ollama_client.close()
@@ -67,6 +71,7 @@ def create_app(
     register_exception_handlers(app)
     app.add_middleware(BodySizeLimitMiddleware, max_upload_mb=settings.max_upload_mb)
     app.include_router(documents.router)
+    app.include_router(ask.router)
 
     @app.get("/health")
     def health() -> dict[str, str]:

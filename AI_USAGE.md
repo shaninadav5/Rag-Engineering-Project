@@ -28,7 +28,7 @@
 
 - **A fake embedder that keeps tests fast and deterministic (Stage 5).** A bag-of-words vector
   hashed with `md5` makes texts that share words similar, so ranking can be tested without the real
-  model; 175 tests run offline in about 25 seconds (after Stage 8). Python's built-in `hash()` would have made tests
+  model; 207 tests run offline in about 15 seconds (after the Stage 9 review follow-ups). Python's built-in `hash()` would have made tests
   flaky, because it is randomized per process.
 - **Turning my review concerns into measurements (Stage 5).** I asked for four checks: model
   loaded once, explicit normalization, tokenizer edge cases, and Chroma under concurrency. The AI
@@ -54,6 +54,13 @@
   network. The AI pointed out that this proves the refusal rule is *in* the prompt, not that
   llama3.2 *follows* it for near misses; that check became an explicit Stage 10 task (T047) to run
   against the real model in docker-compose.
+- **Reviewing the wired `/ask` path before locking the design (Stage 9).** Three review points
+  changed the endpoint: out-of-range citations like `[7]` with 3 sources are now stripped (a regex
+  cannot catch a valid number pointing at the wrong source); the prompt budget now includes the
+  question and source labels, because bge and Llama disagree on token counts (2000 emoji → 1 bge
+  token); and a shared SentenceTransformer was probed from 8 threads (0 errors, no lock added)
+  and locked in with a real-model test. Truncation is still silent on Ollama's side, so the
+  client now warns when `prompt_eval_count + num_predict` reaches `num_ctx`.
 
 ## What I Had to Fix
 
@@ -85,10 +92,12 @@
   characters, and SQLAlchemy 2.1 deprecates `Result.tuples()` (the AI's first retrieval code used
   it and failed 6 tests). The fix was to probe the installed library with a small script before designing
   against it, and to pin exact versions.
-- **Tests that pass on the first run prove nothing by themselves (Stages 3-4).** All chunking tests
+- **Tests that pass on the first run prove nothing by themselves (Stages 3-5 and 9).** All chunking tests
   passed immediately, so the code was deliberately broken (overlap disabled, page-break joining
   disabled) to confirm the tests fail: 5 and 1 tests failed respectively. The same was done in
-  Stage 5: with `normalize_embeddings=False` the new embedder test fails.
+  Stage 5: with `normalize_embeddings=False` the new embedder test fails. In Stage 9, disabling
+  the refusal normalization failed 1 test, removing the endpoint's settings-limit check failed 3,
+  skipping citation stripping failed 2, and skipping the empty-source short-circuit failed 1.
 - **A race condition in its own earlier design (Stages 0 and 6).** The Stage 0 design for
   "delete while processing" relied on the chunk insert failing on the foreign key, then cleaning
   up. Designing Stage 6 in detail showed a gap: a batch written between the delete's two steps
@@ -100,6 +109,11 @@
   prove the lock is needed. Removing the "delete the saved file on rejection" line made 4 tests fail, but the
   page-limit and size-limit tests still passed because they did not check the uploads folder; they
   now do.
+- **A test that bypassed the code it was meant to test (Stage 9).** The first "Ollama is
+  unreachable" test built the app with a fake LLM and then swapped in a real client by assigning
+  a private attribute (`qa_service._llm`). That skips the startup wiring that creates the real
+  client, so a wiring bug would go unnoticed. The test now builds the app without a fake, pointing
+  it at a closed port, and checks for `503 LLM_UNAVAILABLE`.
 - **A benchmark that measured the wrong thing (Stage 5).** The first probe reported the same token
   count for "1 MB" and "10 MB" texts: it sliced a 1.1 MB string to 10 MB, which changes nothing.
   The suspicious number exposed it; the corrected run showed counting scales linearly (about 1.7 s

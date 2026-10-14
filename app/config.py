@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     llm_temperature: float = Field(0.1, ge=0.0, le=2.0)
     llm_num_ctx: int = Field(8192, gt=0)
     llm_num_predict: int = Field(512, gt=0)
+    # Whole prompt in embedding-tokenizer units: system + question + labels + chunks.
     max_context_tokens: int = Field(3000, gt=0)
 
     @model_validator(mode="after")

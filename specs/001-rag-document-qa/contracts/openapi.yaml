@@ -145,7 +145,8 @@ paths:
         "200":
           description: >
             Answer with sources. When no passage passes the similarity threshold, `answer` is
-            "I don't have information about that." and `sources` is empty.
+            "I don't have information about that." and `sources` is empty. The same applies when
+            the model itself replies with that sentence.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AskResponse" }

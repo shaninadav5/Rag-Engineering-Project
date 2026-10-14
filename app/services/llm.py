@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -5,6 +6,8 @@ import httpx
 
 from app.config import Settings
 from app.errors import LLMError, LLMUnavailableError
+
+logger = logging.getLogger(__name__)
 
 _CONNECT_TIMEOUT_SECONDS = 5.0
 
@@ -84,7 +87,20 @@ class OllamaClient:
         if not text:
             raise LLMError("The language model returned an empty answer.")
         # Ollama omits prompt_eval_count when the prompt was served from its cache.
-        tokens_used = int(body.get("prompt_eval_count") or 0) + int(body.get("eval_count") or 0)
+        prompt_eval_count = int(body.get("prompt_eval_count") or 0)
+        eval_count = int(body.get("eval_count") or 0)
+        num_ctx = int(self._options["num_ctx"])
+        num_predict = int(self._options["num_predict"])
+        if prompt_eval_count and prompt_eval_count + num_predict >= num_ctx:
+            logger.warning(
+                "Ollama prompt_eval_count=%s plus num_predict=%s reaches num_ctx=%s; "
+                "the prompt may have been truncated",
+                prompt_eval_count,
+                num_predict,
+                num_ctx,
+            )
         return Generation(
-            text=text, model=str(body.get("model") or self._model), tokens_used=tokens_used
+            text=text,
+            model=str(body.get("model") or self._model),
+            tokens_used=prompt_eval_count + eval_count,
         )

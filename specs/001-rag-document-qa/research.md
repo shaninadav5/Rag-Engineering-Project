@@ -263,11 +263,18 @@ Generation settings: `temperature = 0.1`, `num_ctx = 8192`, `num_predict = 512`.
   lower-ranked chunks are dropped whole, never cut mid-text, so every citation points at complete text.
   Adding stops at the first chunk that does not fit: a smaller, lower-ranked chunk never takes the
   place of a higher-ranked one.
-- The budget counts each chunk's stored `token_count` (embedding tokenizer), so building the
-  prompt needs no tokenizing. Source headers, the system prompt, and the question are not counted;
-  they are small (the question is at most 2000 characters) and fit in the margin. The LLM's
-  tokenizer differs, so the budget leaves a wide margin below `num_ctx`: 3000 + 512 of 8192.
-- Startup check: `max_context_tokens >= chunk_size`, so the top-ranked chunk always fits.
+- The budget is the whole prompt, counted in embedding-tokenizer units: system message, question,
+  source labels, and each chunk's stored `token_count`. Chunk bodies are not re-tokenized; labels
+  and the question are, because a 2000-character question is cheap in English (~400 tokens) but
+  can be thousands of tokens in other scripts, and emoji can collapse to a single unknown token
+  in bge while Llama still sees a long prompt. If the overhead leaves no room for any chunk, the
+  answer is the refusal and the LLM is not called.
+- The LLM's tokenizer still differs, so the budget leaves a wide margin below `num_ctx`:
+  3000 + 512 of 8192. If Ollama reports `prompt_eval_count + num_predict >= num_ctx`, the client
+  logs a warning: truncation would otherwise be silent. Stage 10 measures real Llama token counts
+  on long English, emoji, and non-Latin questions.
+- Startup check: `max_context_tokens >= chunk_size`. That is necessary but not sufficient once
+  overhead is counted; a huge question can still leave no room for a chunk.
 - `num_ctx` is always sent explicitly: Ollama's default context window is small and it silently
   drops the start of prompts that exceed it, which would cut off the sources.
 
@@ -277,7 +284,12 @@ Generation settings: `temperature = 0.1`, `num_ctx = 8192`, `num_predict = 512`.
   so `[n]` in the answer refers to `sources[n-1]`.
 - If the model replies with the refusal sentence, `sources` is returned empty. "Replies with" means
   the whole answer is the sentence, ignoring case, surrounding quotes, the final period, and a
-  curly apostrophe. A refusal followed by other content keeps its sources.
+  curly apostrophe. A refusal followed by other content keeps its sources. A detected refusal is
+  returned as the exact refusal sentence, so clients see one stable string whatever the model's
+  punctuation.
+- Citation numbers outside `1..len(sources)` are stripped from the answer and logged. A valid
+  number pointing at the wrong source cannot be detected this way; Stage 11 still watches how
+  often llama3.2 emits out-of-range citations.
 - The threshold cannot catch same-domain near misses (section 4), so the refusal rule is the
   guard for them. Mocked tests only prove the rule is in the prompt; whether llama3.2 follows it
   is checked against the real model in Stage 10 and tuned in Stage 11.
@@ -405,6 +417,11 @@ framework errors (unknown route, wrong method) with code `HTTP_ERROR`, and unexp
 with code `INTERNAL_ERROR` and a generic message (the traceback goes to the server log only).
 A stable `code` lets clients and tests branch on the error without parsing messages.
 
+`/ask` limits that come from configuration (`max_question_chars`, `top_k_max`) cannot be part of
+the Pydantic request model, which is fixed at import time. The endpoint checks them against the
+current settings and raises the same `RequestValidationError`, so they return `422
+VALIDATION_ERROR` with the same `field` format as the static rules.
+
 ### 6.6 LLM error mapping
 
 | Ollama situation | API response |
@@ -433,6 +450,9 @@ working while Ollama is down or still pulling the model.
   of calls, and process memory stays flat (548 MB after loading, 567 MB warm, 568 MB after 100
   more rounds of embedding).
 - The instance is shared across threads (the threadpool that runs sync endpoints and background
-  tasks). Concurrent `embed_documents`, `embed_query` and `count_tokens` calls ran without errors.
+  tasks). An 8-thread mix of `embed_documents`, `embed_query` and `count_tokens` completed with
+  no errors (probe plus a `@pytest.mark.model` regression test). There is no lock around encode:
+  holding one across a 32-chunk batch (~25 s on CPU) would stall `/ask`. Revisit only if the
+  test starts failing (`Already borrowed` from the fast tokenizer is the expected symptom).
 - During processing, an embedding error marks the document `failed` with the reason (edge case 7).
 - During `/ask`, an error while embedding the question returns `503 EMBEDDING_UNAVAILABLE`.

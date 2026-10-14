@@ -1,4 +1,5 @@
 import json
+import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -60,6 +61,26 @@ def test_successful_reply_is_mapped_to_a_generation(tmp_path: Path) -> None:
     client = make_client(tmp_path, ollama_reply("  Revenue grew 12% [1].\n"))
 
     assert client.generate("s", "u") == Generation("Revenue grew 12% [1].", "llama3.2:3b", 150)
+
+
+def test_prompt_near_the_context_limit_logs_a_truncation_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    # Default num_ctx=8192, num_predict=512; 7680 + 512 == 8192.
+    with caplog.at_level(logging.WARNING, logger="app.services.llm"):
+        make_client(tmp_path, ollama_reply(prompt_eval_count=7680)).generate("s", "u")
+
+    assert "truncated" in caplog.text
+    assert "7680" in caplog.text
+
+
+def test_prompt_well_under_the_context_limit_does_not_warn(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.WARNING, logger="app.services.llm"):
+        make_client(tmp_path, ollama_reply(prompt_eval_count=120)).generate("s", "u")
+
+    assert caplog.text == ""
 
 
 def test_missing_prompt_token_count_counts_as_zero(tmp_path: Path) -> None:

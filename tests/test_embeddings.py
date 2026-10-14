@@ -1,6 +1,7 @@
 import math
 import sys
 import types
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -155,3 +156,29 @@ def test_real_tokenizer_counts_text_longer_than_model_limit_without_truncating(
 def test_unknown_model_fails_with_configuration_error() -> None:
     with pytest.raises(ConfigurationError, match="does-not-exist"):
         SentenceTransformerEmbedder("rag-tests/does-not-exist-model", batch_size=8)
+
+
+@pytest.mark.model
+def test_real_model_handles_concurrent_encode_and_count_from_threads(
+    real_embedder: SentenceTransformerEmbedder,
+) -> None:
+    texts = ["revenue grew 12 percent", "the Berlin office opened", "word " * 40]
+    errors: list[BaseException] = []
+
+    def work(worker: int) -> None:
+        try:
+            for i in range(10):
+                kind = (worker + i) % 3
+                if kind == 0:
+                    real_embedder.embed_query(texts[i % 3])
+                elif kind == 1:
+                    real_embedder.embed_documents(texts)
+                else:
+                    real_embedder.count_tokens(texts[(i + 1) % 3])
+        except BaseException as exc:
+            errors.append(exc)
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(work, range(8)))
+
+    assert errors == []
