@@ -271,8 +271,19 @@ Generation settings: `temperature = 0.1`, `num_ctx = 8192`, `num_predict = 512`.
   answer is the refusal and the LLM is not called.
 - The LLM's tokenizer still differs, so the budget leaves a wide margin below `num_ctx`:
   3000 + 512 of 8192. If Ollama reports `prompt_eval_count + num_predict >= num_ctx`, the client
-  logs a warning: truncation would otherwise be silent. Stage 10 measures real Llama token counts
-  on long English, emoji, and non-Latin questions.
+  logs a warning: truncation would otherwise be silent. Stage 10 measured real Llama
+  `prompt_eval_count` for a full prompt (system + one short source + 2000-character question,
+  `num_ctx=8192`, `num_predict=1`):
+
+  | Question | Llama tokens | Headroom after `num_predict=512` |
+  |----------|--------------|----------------------------------|
+  | English | 531 | 7149 |
+  | Hebrew | 1970 | 5710 |
+  | 2000 emoji | 4142 | 3538 |
+
+  All three fit. Emoji is the tightest; bge still collapses that string to 1 token, so the
+  embedding-tokenizer budget will not shrink the sources. The `prompt_eval_count` warning is the
+  backstop.
 - Startup check: `max_context_tokens >= chunk_size`. That is necessary but not sufficient once
   overhead is counted; a huge question can still leave no room for a chunk.
 - `num_ctx` is always sent explicitly: Ollama's default context window is small and it silently
@@ -293,6 +304,8 @@ Generation settings: `temperature = 0.1`, `num_ctx = 8192`, `num_predict = 512`.
 - The threshold cannot catch same-domain near misses (section 4), so the refusal rule is the
   guard for them. Mocked tests only prove the rule is in the prompt; whether llama3.2 follows it
   is checked against the real model in Stage 10 and tuned in Stage 11.
+  Stage 10: llama3.2:3b refused "What was the revenue in Q1?" against a Q3-revenue document
+  (`tokens_used=167`, so the LLM ran; the threshold had not dropped the chunks).
 - `tokens_used` = Ollama's `prompt_eval_count + eval_count`.
 
 **Rationale**
@@ -456,3 +469,30 @@ working while Ollama is down or still pulling the model.
   test starts failing (`Already borrowed` from the fast tokenizer is the expected symptom).
 - During processing, an embedding error marks the document `failed` with the reason (edge case 7).
 - During `/ask`, an error while embedding the question returns `503 EMBEDDING_UNAVAILABLE`.
+
+### 6.8 Containerization
+
+- **CPU-only PyTorch** is installed from `https://download.pytorch.org/whl/cpu` *before*
+  `requirements.txt`, so `sentence-transformers` does not pull a CUDA wheel. Verified in the
+  running container: `torch.__version__ == 2.14.1+cpu`, `cuda.is_available() == False`.
+- **Embedding model baked into the image** (`HF_HOME=/opt/hf-cache`) so a cold start does not
+  need Hugging Face. The cache is not a volume; a volume would hide the baked files.
+- **One uvicorn worker** (`--workers 1`): Chroma is single-process (section 3) and this keeps one
+  copy of the embedding model in memory.
+- **Compose services**: `app`, `ollama`, and a one-shot `ollama-pull`. The pull command is in
+  `entrypoint` (`until ollama pull llama3.2:3b; do sleep 3; done`) because a quoted `command:`
+  string on Windows Compose split `do` off the script (`sh: Syntax error: expecting "do"`).
+  The app does not wait for the pull: uploads work immediately; `/ask` returns `503` until the
+  model is present.
+- **`RAG_OLLAMA_BASE_URL=http://ollama:11434` is set in compose `environment:`** so it always
+  overrides a host `.env` that points at `localhost`.
+- **App data** is a bind mount `./data:/data`. Ollama weights live in a named volume so a rebuild
+  of the app image does not re-download 2 GB.
+- **Ollama's published port is loopback-only** (`127.0.0.1:11434:11434`). The app still uses
+  `http://ollama:11434` on the compose network; the host can probe Ollama, the LAN cannot.
+- **Ollama has a healthcheck** (`ollama list`). Only `ollama-pull` waits for `service_healthy`.
+  The app does not: it never calls Ollama at startup, so a late Ollama cannot crash it.
+- **The app process is not root.** An entrypoint running as root `chown`s `/data` (so the bind
+  mount is writable on Linux and Docker Desktop) then `exec gosu appuser`. uid 1000 matches the
+  first user on most Linux hosts. `PYTHONDONTWRITEBYTECODE=1` so appuser does not need to write
+  `__pycache__` under `/app`.

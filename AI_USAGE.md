@@ -61,6 +61,12 @@
   token); and a shared SentenceTransformer was probed from 8 threads (0 errors, no lock added)
   and locked in with a real-model test. Truncation is still silent on Ollama's side, so the
   client now warns when `prompt_eval_count + num_predict` reaches `num_ctx`.
+- **Checking the request against a real Ollama, not the mock (Stage 10).** `docker compose up`
+  plus curl showed llama3.2:3b cites `[1]` for a Q3-revenue question and refuses a Q1 near-miss
+  (`tokens_used=167`, so the LLM ran). Stopping Ollama returned `503` while `/health` stayed
+  `200`. A second app with `RAG_LLM_MODEL=does-not-exist` returned the pull command in the 503
+  message. Llama token counts for a 2000-character question were 531 (English), 1970 (Hebrew),
+  4142 (emoji) — all under 8192, with emoji the tightest.
 
 ## What I Had to Fix
 
@@ -109,6 +115,10 @@
   prove the lock is needed. Removing the "delete the saved file on rejection" line made 4 tests fail, but the
   page-limit and size-limit tests still passed because they did not check the uploads folder; they
   now do.
+- **A compose `command:` that looked valid and was not (Stage 10).** The first `ollama-pull`
+  service used `entrypoint: ["/bin/sh", "-c"]` and a quoted `command:` with `until ... do`.
+  Windows Compose split the script so `do` never reached the shell (`Syntax error: expecting
+  "do"`). Moving the whole script into `entrypoint` as one argument fixed it.
 - **A test that bypassed the code it was meant to test (Stage 9).** The first "Ollama is
   unreachable" test built the app with a fake LLM and then swapped in a real client by assigning
   a private attribute (`qa_service._llm`). That skips the startup wiring that creates the real

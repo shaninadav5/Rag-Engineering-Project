@@ -15,6 +15,10 @@ docker compose up --build        # or locally: uvicorn app.main:app --reload
 $BASE = "http://localhost:8000"
 ```
 
+First compose start pulls `llama3.2:3b` (a few GB) in the `ollama-pull` service. `GET /health`
+works as soon as the app has loaded the embedding model; `POST /ask` returns `503 LLM_UNAVAILABLE`
+until the pull finishes. Uploads do not wait for Ollama.
+
 Prepare `tests/fixtures/` style samples, or use any real PDF. Below, `report.pdf` contains a known
 fact, e.g. "Q3 revenue grew 12%".
 
@@ -103,6 +107,13 @@ Restart with `docker compose start ollama`.
 | `{"question": "x", "top_k": 0}` | `422 VALIDATION_ERROR` |
 | `{"question": "x", "document_ids": []}` | `422 VALIDATION_ERROR` |
 
-## Scenario 10 - Performance (SC-001)
+## Scenario 10 - Near-miss question (prompt refusal, not the threshold)
+
+After Scenario 2 has a completed Q3-revenue document, ask: `{"question": "What was the revenue in Q1?"}`
+
+Expect the refusal sentence and empty `sources`. The similarity threshold does not drop this
+near miss (research.md section 4); the prompt rule must.
+
+## Scenario 11 - Performance (SC-001)
 
 Upload a 10-page text PDF and time from upload to `completed`. Expect under 60 seconds on CPU.

@@ -1,0 +1,50 @@
+# Full system: app + Ollama. First start pulls llama3.2:3b; /ask returns 503 until that finishes.
+# Uploads work as soon as the app is up (Ollama is not required at startup).
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      RAG_DATA_DIR: /data
+      # Always the compose service name, even if a host .env points at localhost.
+      RAG_OLLAMA_BASE_URL: http://ollama:11434
+    volumes:
+      - ./data:/data
+    depends_on:
+      ollama:
+        condition: service_started
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama
+    ports:
+      # Loopback only: the app reaches Ollama as http://ollama:11434 on the compose network.
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  ollama-pull:
+    image: ollama/ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    # Script lives in entrypoint so Windows YAML cannot split `do` off the command.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - until ollama pull llama3.2:3b; do sleep 3; done
+    restart: "no"
+
+volumes:
+  ollama:

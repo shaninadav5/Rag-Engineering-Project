@@ -97,10 +97,10 @@ Check a task off only when its code and tests are done and reviewed. Each stage 
 
 ## Stage 10 - Containerization
 
-- [ ] T045 `Dockerfile` with CPU-only PyTorch and pre-downloaded embedding model; uvicorn runs a
+- [x] T045 `Dockerfile` with CPU-only PyTorch and pre-downloaded embedding model; uvicorn runs a
   single worker (Chroma is single-process, research.md section 3)
-- [ ] T046 `docker-compose.yml` with `app`, `ollama`, volumes, model pull
-- [ ] T047 Run quickstart against containers, including the first real-Ollama checks: request format,
+- [x] T046 `docker-compose.yml` with `app`, `ollama`, volumes, model pull
+- [x] T047 Run quickstart against containers, including the first real-Ollama checks: request format,
   error mapping with Ollama stopped / model not pulled, near-miss questions ("revenue in Q1")
   answered with the refusal, and Llama token counts for a 2000-character English question, an
   emoji question, and a non-Latin (e.g. Hebrew) question against `num_ctx`; commit
