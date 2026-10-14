@@ -93,24 +93,24 @@ all sources come from that document.
 
 ### Edge Cases
 
-| # | Situation | Expected behavior |
-|---|-----------|-------------------|
-| 1 | Empty document (no bytes, or no extractable text) | Rejected with a clear error saying the document is empty |
-| 2 | Document larger than the configured size limit, or with more pages than the page limit | Rejected at the entrance, before the upload is fully received where possible, with an error stating the limit |
-| 3 | No passage is relevant enough to the question | Answer "I don't have information about that", no sources, LLM not called |
-| 4 | Question filtered to a document id that does not exist | Clear error naming the unknown id(s) |
-| 5 | Unsupported file type | Rejected with an error listing the supported types (PDF, TXT, MD) |
-| 6 | LLM unavailable, timing out, or erroring | Clear "generation service unavailable" error; service keeps running |
-| 7 | Embedding fails during processing | Document marked `failed` with the reason; user may delete and re-upload. If the question itself cannot be embedded, a clear "embedding unavailable" error |
+| # | Situation | Expected behavior | Met |
+|---|-----------|-------------------|-----|
+| 1 | Empty document (no bytes, or no extractable text) | Rejected with a clear error saying the document is empty | [x] |
+| 2 | Document larger than the configured size limit, or with more pages than the page limit | Rejected at the entrance, before the upload is fully received where possible, with an error stating the limit | [x] |
+| 3 | No passage is relevant enough to the question | Answer "I don't have information about that", no sources, LLM not called | [x] |
+| 4 | Question filtered to a document id that does not exist | Clear error naming the unknown id(s) | [x] |
+| 5 | Unsupported file type | Rejected with an error listing the supported types (PDF, TXT, MD) | [x] |
+| 6 | LLM unavailable, timing out, or erroring | Clear "generation service unavailable" error; service keeps running | [x] |
+| 7 | Embedding fails during processing | Document marked `failed` with the reason; user may delete and re-upload. If the question itself cannot be embedded, a clear "embedding unavailable" error | [x] |
 
 Additional edge cases:
 
-- Question filtered to a document that exists but has not finished processing: clear error stating
+- [x] Question filtered to a document that exists but has not finished processing: clear error stating
   the document is not ready.
-- Question asked when no documents have been processed: same as edge case 3.
-- Empty or whitespace-only question: rejected with a validation error.
-- `top_k` outside the allowed range: rejected with a validation error.
-- Deleting a document that does not exist: clear "not found" error.
+- [x] Question asked when no documents have been processed: same as edge case 3.
+- [x] Empty or whitespace-only question: rejected with a validation error.
+- [x] `top_k` outside the allowed range: rejected with a validation error.
+- [x] Deleting a document that does not exist: clear "not found" error.
 
 ## Requirements
 
@@ -118,49 +118,49 @@ Additional edge cases:
 
 **Document management**
 
-- **FR-001**: System MUST accept uploads of PDF, TXT, and Markdown files, with an optional display
+- [x] **FR-001**: System MUST accept uploads of PDF, TXT, and Markdown files, with an optional display
   name that defaults to the original filename.
-- **FR-002**: System MUST list all documents with id, display name, filename, chunk count, upload
+- [x] **FR-002**: System MUST list all documents with id, display name, filename, chunk count, upload
   date, and processing status.
-- **FR-003**: System MUST return a single document's metadata: id, display name, filename, file
+- [x] **FR-003**: System MUST return a single document's metadata: id, display name, filename, file
   type, page count (when applicable), chunk count, upload date, status, and failure reason (if any).
-- **FR-004**: System MUST delete a document together with all of its chunks, embeddings, and stored
+- [x] **FR-004**: System MUST delete a document together with all of its chunks, embeddings, and stored
   original file, including while the document is still processing.
-- **FR-004a**: System MUST keep the original uploaded file on disk for the document's lifetime.
+- [x] **FR-004a**: System MUST keep the original uploaded file on disk for the document's lifetime.
 
 **Document processing**
 
-- **FR-004b**: System MUST enforce the upload size limit before the request body is fully read
+- [x] **FR-004b**: System MUST enforce the upload size limit before the request body is fully read
   whenever the declared size exceeds it, and MUST never accept a file above the limit.
-- **FR-004c**: The upload request MUST perform only lightweight validation (type, size, page limit,
+- [x] **FR-004c**: The upload request MUST perform only lightweight validation (type, size, page limit,
   readability, presence of text) and MUST NOT block other requests while doing so.
-- **FR-005**: System MUST extract text from uploaded documents, preserving page numbers for PDFs.
-- **FR-006**: System MUST split text into chunks of a configurable size (default ~500 tokens) with
+- [x] **FR-005**: System MUST extract text from uploaded documents, preserving page numbers for PDFs.
+- [x] **FR-006**: System MUST split text into chunks of a configurable size (default ~500 tokens) with
   configurable overlap (default ~50 tokens), preserving paragraph boundaries where possible.
   Chunks MAY cross page boundaries so that text continuing across a page break stays together.
-- **FR-007**: Each chunk MUST record its document, its position (chunk index), the start and end
+- [x] **FR-007**: Each chunk MUST record its document, its position (chunk index), the start and end
   page it spans (when applicable), its token count, and a reference to its embedding.
-- **FR-008**: System MUST generate an embedding for every chunk and store it for similarity search.
-- **FR-009**: Processing MUST run without blocking the upload response and MUST track status:
+- [x] **FR-008**: System MUST generate an embedding for every chunk and store it for similarity search.
+- [x] **FR-009**: Processing MUST run without blocking the upload response and MUST track status:
   `pending` → `processing` → `completed` or `failed`.
 
 **Question answering**
 
-- **FR-010**: System MUST retrieve the top-k chunks most similar to the question (k configurable,
+- [x] **FR-010**: System MUST retrieve the top-k chunks most similar to the question (k configurable,
   default 5, overridable per request).
-- **FR-011**: System MUST support restricting retrieval to a list of document ids. Without a
+- [x] **FR-011**: System MUST support restricting retrieval to a list of document ids. Without a
   filter, only `completed` documents are searched.
-- **FR-012**: System MUST discard chunks below a configurable similarity threshold.
-- **FR-013**: System MUST generate an answer using only the retrieved chunks, instructing the model
+- [x] **FR-012**: System MUST discard chunks below a configurable similarity threshold.
+- [x] **FR-013**: System MUST generate an answer using only the retrieved chunks, instructing the model
   to cite sources.
-- **FR-014**: System MUST keep the prompt within the model's context limit by capping the amount of
+- [x] **FR-014**: System MUST keep the prompt within the model's context limit by capping the amount of
   retrieved text included.
-- **FR-015**: Each response MUST include the answer, the sources (document id, document name,
+- [x] **FR-015**: Each response MUST include the answer, the sources (document id, document name,
   chunk text, start page, end page, relevance score), the model name, and tokens used.
 
 **Errors**
 
-- **FR-016**: System MUST handle all edge cases listed above with clear, specific error messages.
+- [x] **FR-016**: System MUST handle all edge cases listed above with clear, specific error messages.
 
 ### Key Entities
 
@@ -173,14 +173,14 @@ Additional edge cases:
 
 ### Measurable Outcomes
 
-- **SC-001**: A 10-page text PDF finishes processing in under 60 seconds on a typical laptop CPU.
-- **SC-002**: For a question whose answer is in a single known passage, that passage is among the
+- [x] **SC-001**: A 10-page text PDF finishes processing in under 60 seconds on a typical laptop CPU.
+- [x] **SC-002**: For a question whose answer is in a single known passage, that passage is among the
   returned sources.
-- **SC-003**: For questions unrelated to any uploaded document, the system answers "I don't have
+- [x] **SC-003**: For questions unrelated to any uploaded document, the system answers "I don't have
   information about that" rather than inventing an answer.
-- **SC-004**: Every edge case in the table above produces its expected behavior, verified by
+- [x] **SC-004**: Every edge case in the table above produces its expected behavior, verified by
   automated tests.
-- **SC-005**: The full system starts with a single `docker compose up` and requires no API keys.
+- [x] **SC-005**: The full system starts with a single `docker compose up` and requires no API keys.
 
 ## Assumptions
 

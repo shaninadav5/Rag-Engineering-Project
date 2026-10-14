@@ -113,6 +113,6 @@ Check a task off only when its code and tests are done and reviewed. Each stage 
 
 ## Stage 12 - Documentation and final review
 
-- [ ] T051 `README.md`
-- [ ] T052 `AI_USAGE.md` from notes collected during each stage
-- [ ] T053 Walk through `spec.md` and check off every FR, edge case, and success criterion; commit
+- [x] T051 `README.md`
+- [x] T052 `AI_USAGE.md` from notes collected during each stage
+- [x] T053 Walk through `spec.md` and check off every FR, edge case, and success criterion; commit
