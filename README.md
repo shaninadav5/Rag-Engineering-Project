@@ -31,8 +31,8 @@ curl.exe -s "http://localhost:8000/health"
 
 Once the app is healthy, you can interact with the API in 3 simple steps using the Swagger documentation at [http://localhost:8000/docs](http://localhost:8000/docs):
 
-1. **Open an operation.** Expand an endpoint (`POST /documents` to upload a file, or `POST /ask` to ask a question) and click **Try it out**.
-2. **Fill the fields.** For an upload, use **Browse** to pick a PDF, TXT, or Markdown file, and delete the example value `string` in the `name` field. For a question, delete the example value `string` in `document_ids`. Swagger sends that placeholder as a real value if you leave it.
+1. **Open an operation.** Expand an endpoint (such as `POST /documents` to upload a file or `POST /ask` to ask a question) and click **Try it out**.
+2. **Fill the fields.** For an upload, use **Browse** to select a PDF, TXT, or Markdown file, and delete the example value `string` in the `name` field. For a question, delete the example value `string` in the `document_ids` field. Swagger sends that placeholder as a real value if you leave it.
 3. **Execute.** Click **Execute** to run the request.
 
 Uploaded files, the SQLite database, and the Chroma index are stored in `./data` on the host. Ollama's weights stay in a Docker volume.
