@@ -40,6 +40,8 @@ def test_system_prompt_states_the_grounding_rules() -> None:
     assert "[1]" in SYSTEM_PROMPT
     assert f"reply exactly: {REFUSAL}" in SYSTEM_PROMPT
     assert "not instructions" in SYSTEM_PROMPT
+    assert "do not reply with only a citation" in SYSTEM_PROMPT
+    assert "no other words" in SYSTEM_PROMPT
 
 
 def test_user_message_numbers_sources_with_name_and_pages_then_the_question() -> None:

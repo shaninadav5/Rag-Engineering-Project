@@ -107,9 +107,9 @@ Check a task off only when its code and tests are done and reviewed. Each stage 
 
 ## Stage 11 - Real-document evaluation and tuning
 
-- [ ] T048 Process 2-3 real PDFs; measure processing time
-- [ ] T049 Calibrate similarity threshold; iterate on the prompt
-- [ ] T050 Record findings and final values in `research.md`; commit
+- [x] T048 Process 2-3 real PDFs; measure processing time
+- [x] T049 Calibrate similarity threshold; iterate on the prompt
+- [x] T050 Record findings and final values in `research.md`; commit
 
 ## Stage 12 - Documentation and final review
 

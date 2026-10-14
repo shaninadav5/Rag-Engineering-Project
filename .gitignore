@@ -9,3 +9,6 @@ htmlcov/
 
 # Runtime data: SQLite DB, Chroma index, uploaded files
 data/
+
+# Stage 11 evaluation PDFs (generated or downloaded); findings live in research.md
+eval/

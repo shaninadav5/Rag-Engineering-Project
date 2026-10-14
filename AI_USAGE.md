@@ -67,6 +67,12 @@
   `200`. A second app with `RAG_LLM_MODEL=does-not-exist` returned the pull command in the 503
   message. Llama token counts for a 2000-character question were 531 (English), 1970 (Hebrew),
   4142 (emoji) — all under 8192, with emoji the tightest.
+- **Scoring real documents before moving the threshold (Stage 11).** Three PDFs (a planted
+  report, a planted handbook, and a public-domain Defense Horizons paper) all finished processing
+  in under 20 seconds. Correct passages scored 0.59-0.72 and off-topic questions never called the
+  LLM, so 0.5 stayed. The prompt did not: llama3.2 sometimes answered with only `[1]`, and it
+  paraphrased the Q1 refusal. Two rules fixed that on a re-ask. A higher threshold was rejected
+  because filler from the same document scores 0.50-0.57, overlapping the weakest correct hit.
 
 ## What I Had to Fix
 
