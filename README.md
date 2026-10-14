@@ -61,7 +61,7 @@ That is the offline suite, about 200 tests, about 15 seconds. Chunking, retrieva
 | Piece | Choice | Why |
 | --- | --- | --- |
 | Embeddings | Sentence Transformers `BAAI/bge-small-en-v1.5`, 384 dimensions | Runs on CPU, no API key. It reads 512 tokens, which fits a 500-token chunk. `all-MiniLM-L6-v2` reads only 256, so half of each chunk would be silently dropped. |
-| LLM | Ollama `llama3.2:3b` | Local, so documents and questions are not sent to a cloud model provider. small enough to run on CPU. Temperature 0.1. `num_ctx` is always sent as 8192, because Ollama's default window is smaller and it drops the start of a longer prompt, which is where the sources are. |
+| LLM | Ollama `llama3.2:3b` | Local, so documents and questions are not sent to a cloud model provider. Small enough to run on CPU. Temperature 0.1. `num_ctx` is always sent as 8192, because Ollama's default window is smaller and it drops the start of a longer prompt, which is where the sources are. |
 | Vectors | ChromaDB, embedded in the app process | Cosine similarity, filter by document id, persists under `./data/chroma`. One uvicorn worker, because this Chroma client is single-process. |
 | Metadata | SQLite | Document status, page counts, chunk text, and the id that links a chunk to its vector. |
 
